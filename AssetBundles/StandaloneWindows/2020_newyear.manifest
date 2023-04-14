@@ -1,0 +1,33 @@
+ManifestFileVersion: 0
+CRC: 722226638
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 6b0f4677cfcc50fb0a9cf6253a247e99
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: e2a11be68d6287ac10b047eee7e3b6d6
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 23
+  Script: {instanceID: 0}
+- Class: 33
+  Script: {instanceID: 0}
+- Class: 43
+  Script: {instanceID: 0}
+- Class: 48
+  Script: {instanceID: 0}
+- Class: 136
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/Prefabs/2020_Newyear/Capsule01.prefab
+- Assets/Prefabs/2020_Newyear/Capsule02.prefab
+- Assets/Prefabs/2020_Newyear/Capsule03.prefab
+Dependencies: []

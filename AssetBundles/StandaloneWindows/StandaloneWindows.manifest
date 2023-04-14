@@ -1,0 +1,10 @@
+ManifestFileVersion: 0
+CRC: 600741319
+AssetBundleManifest:
+  AssetBundleInfos:
+    Info_0:
+      Name: 2020_newyear
+      Dependencies: {}
+    Info_1:
+      Name: picbot_audios
+      Dependencies: {}

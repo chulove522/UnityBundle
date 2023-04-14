@@ -1,0 +1,26 @@
+ManifestFileVersion: 0
+CRC: 3294507361
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 47786e0fbea91d1f19edd41d2c29e516
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 9a2ca7bdbd1871f7131daf57de908e0c
+HashAppended: 0
+ClassTypes:
+- Class: 83
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/Audios/Picbot_Audios/Picbot_SE_click_notification.wav
+- Assets/Audios/Picbot_Audios/Picbot_SE_CameraShutter.wav
+- Assets/Audios/Picbot_Audios/Picbot_SE_click_buttoncute.mp3
+- Assets/Audios/Picbot_Audios/Picbot_BackGroundMusic_easylifestyle.mp3
+- Assets/Audios/Picbot_Audios/Picbot_SE_click_notification.mp3
+- Assets/Audios/Picbot_Audios/Picbot_BackGroundMusic__AbstractFashionPop.mp3
+- Assets/Audios/Picbot_Audios/Picbot_BackGroundMusic_waterfall.mp3
+- Assets/Audios/Picbot_Audios/Picbot_BackGroundMusic__lifelike.mp3
+- Assets/Audios/Picbot_Audios/Picbot_BackGroundMusic_vlog.mp3
+- Assets/Audios/Picbot_Audios/Picbot_SE_click.mp3
+Dependencies: []
