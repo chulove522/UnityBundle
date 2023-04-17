@@ -4,16 +4,18 @@ using UnityEngine;
 using System.Net;
 using System.IO;
 using System;
-using System.Linq;
+using Renci.SshNet;
+using Renci.SshNet.Sftp;
 using UnityEngine.UI;
 using Newtonsoft.Json;
 using UnityEngine.Networking;
-
+using System.Linq;
+using System.Text;
 
 public class AssetBundleManager : MonoBehaviour {
 
-    public Text ThemeName;
-    public Text BundleState;
+    public Text ThemeNameMsg;
+    public Text BundleStateMsg;
     public Text StreamingPath;
     public Text ErrorMsg;
     public Text LogMsg;
@@ -35,13 +37,17 @@ public class AssetBundleManager : MonoBehaviour {
 
     /// <summary>
     /// 連接所需資料  下載路徑
+    ///     //18.180.240.3
     /// </summary>
-    /// //unity_bundle / 123123
-    /// ftp unity_bundle@ubuntu@18.180.240.3
-    public string serverUrl = "18.180.240.3";
+    string serverUrl = "18.180.240.3";
     string localStreamingPath;
-    public string storagePath;
+    string storagePath;
     string GlobalConstAB_VERSION_FILE = "ABVersion.json";
+    string GlobalConstAnnouncement = "活動公告.txt";
+    string TestImageFile;
+    string rootPath;
+    string bundlePath;
+    string annnouncementPath;
 
     // ssh -i C:\Users\chulo\UnityProject\FunkAR.pem ubuntu@18.180.240.3
 
@@ -74,6 +80,7 @@ public class AssetBundleManager : MonoBehaviour {
         Instance = this.GetComponent<AssetBundleManager>();
         DontDestroyOnLoad(gameObject);
         Init();
+
     }
 
 
@@ -88,9 +95,10 @@ public class AssetBundleManager : MonoBehaviour {
 
             List<ABVersionData> abList = JsonConvert.DeserializeObject<List<ABVersionData>>(ABjson);
 
-            /*foreach (var item in abList) {
-                Debug.Log("Name:" + item.Name + " Ver:" + item.Version +" Last Updated:"+ item.Datetime);
-            }*/
+            foreach (var item in abList) {
+                ShowOnScreen("Name:" + item.Name +"\n" , ThemeNameMsg);
+                ShowOnScreen("Ver:" + item.Version + " Last Updated:" + item.Datetime + "\n" , BundleStateMsg);
+            }
 
         }
 
@@ -99,6 +107,9 @@ public class AssetBundleManager : MonoBehaviour {
 
     public void Init()
     {
+
+        ClearAllText();
+
         if (loadedBundle == null)
             loadedBundle = new Dictionary<string, AssetBundle>();
 
@@ -109,21 +120,28 @@ public class AssetBundleManager : MonoBehaviour {
 
         localStreamingPath = Path.Combine(Application.streamingAssetsPath, "AssetBundles/Windows");
 
+        TestImageFile = Application.dataPath + "/TestImageFile";
+
+        rootPath = "/home/unity_bundle_sftp_user/";
+        bundlePath = "/home/unity_bundle_sftp_user/bundles/";
+        annnouncementPath = "/home/unity_bundle_sftp_user/announcement/";
+
         ShowOnScreen(localStreamingPath , StreamingPath);
 
 
-        ShowOnScreen(ABcheckPath, LogMsg);
+        ShowOnScreen("ABcheckPath:" + ABcheckPath, LogMsg);
 
 
 
-        if (File.Exists(ABcheckPath))
+        if (System.IO.File.Exists(ABcheckPath))
         {
-            ShowOnScreen("found AB check json", LogMsg);
+            ShowOnScreen("------found AB check json------", LogMsg);
             //本地Json必讀
             LoadJson(ABcheckPath);
 
-            //測試 下載一張圖
-            DownloadWithFTP(serverUrl, "unity_bundle" , "123123" , "ftp/test.png", storagePath);            
+            
+            //測試 下載一張圖    
+            DownloadWithsFTP(serverUrl, "unity_bundle_sftp_user");
 
            isInit = true;  
         }
@@ -145,60 +163,105 @@ public class AssetBundleManager : MonoBehaviour {
 
 
     }
-    //ftp://unity_bundle@18.180.240.3/home/unity_bundle/ftp/test.jpg
-    //18.180.240.3
-    private void DownloadWithFTP(string ftpHost, string ftpUsername, string ftpPassword, string ftpFilePath, string localFilePath)
-    {
-        if (isLocal)
-            return;
-        else {
 
-            // Set up the credentials for the FTP client
-            NetworkCredential credentials = new NetworkCredential(ftpUsername, ftpPassword);
+   
+    private void DownloadWithsFTP(string ftpHost, string ftpUsername) {
+        if (!isLocal) {
+            var privateKey = new PrivateKeyFile(@"C:\Users\chulo\文件\unitybundles\meta_dev_armand_unity_sftp.pem");
 
-            // Set up the FTP request
-            //FtpWebRequest request = (FtpWebRequest)WebRequest.Create($"ftp://{ftpHost}/home/unity_bundle/{ftpFilePath}");
-
-            //request.Method = WebRequestMethods.Ftp.DownloadFile;
-            FtpWebRequest request = (FtpWebRequest)WebRequest.Create($"ftp://{ftpHost}:21/");
-            request.Credentials = credentials;
-            request.Method = WebRequestMethods.Ftp.ListDirectory;
-            // Get the list of files in the root directory
-
-            print("response :" + request.GetResponse());
-
-
-            using (FtpWebResponse response = (FtpWebResponse)request.GetResponse()) {
+            using (var sftp = new SftpClient(ftpHost, ftpUsername, new[] { privateKey})) {
+                sftp.Connect();
 
                 
-                        using (Stream responseStream = response.GetResponseStream()) {
-                            using (StreamReader reader = new StreamReader(responseStream)) {
-                                string line;
-                                while ((line = reader.ReadLine()) != null) {
-                                    Console.WriteLine(line);
-                                }
-                            }
-                        }
-                    }
 
-            /*
-            try {
-                // Connect to the FTP server and download the file
-                using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
-                using (Stream ftpStream = response.GetResponseStream())
-                using (Stream fileStream = new FileStream(localFilePath, FileMode.Create)) {
-                    ftpStream.CopyTo(fileStream);
+
+                Dir(sftp, bundlePath);
+                ShowOnScreen("------Create folder------", LogMsg);
+
+                var rndName = DateTime.Now.ToString("yyyyMMddHHmm");
+                rndName = rndName.Substring(2, 10);
+
+                sftp.CreateDirectory($"{rndName}");
+
+
+                Dir(sftp, bundlePath);
+
+                ShowOnScreen("------Upload file------", LogMsg);
+                /*
+                using (var ms = new MemoryStream()) {
+                    var buff = Encoding.UTF8.GetBytes("Hello, World!");
+                    ms.Write(buff, 0, buff.Length);
+                    ms.Position = 0;
+                    //sftp.UploadFile(ms, $"/{rndName}A/test.txt");
+                    sftp.UploadFile(ms, annnouncementPath + $"test.txt");
+                }*/
+                string image01Path = TestImageFile + "/test01.jpg";
+                using (var fileStream = new FileStream(image01Path, FileMode.Open)) {
+                    sftp.UploadFile(fileStream, annnouncementPath + Path.GetFileName(image01Path));
                 }
-            }
-            catch (Exception e) {
-                print(e.InnerException);
-                throw;
-            }*/
 
-        } 
+
+                Dir(sftp, bundlePath + $"{rndName}");
+
+                using (var announcementDocu = new FileStream("D:\\announcementDocu.txt", FileMode.Create)) {
+                    //sftp.DownloadFile( rootPath + $"{rndName}/test.txt", file);
+                    sftp.DownloadFile( annnouncementPath + GlobalConstAnnouncement, announcementDocu);
+                   
+                }
+
+                ShowOnScreen("------Downloaded content=" + System.IO.File.ReadAllText("D:\\announcementDocu.txt") + "------", LogMsg);
+
+                /*
+                WriteTitle("Move file");
+
+                sftp.CreateDirectory($"/{rndName}B");
+                sftp.RenameFile($"/{rndName}A/test.txt", $"/{rndName}B/test.txt");
+
+                Dir($"/{rndName}A");
+                Dir($"/{rndName}B");
+                */
+                /*
+                WriteTitle("Delete file");
+
+                sftp.DeleteFile($"/{rndName}B/test.txt");
+
+                Dir($"/{rndName}B");
+
+                sftp.DeleteDirectory($"/{rndName}A");
+                sftp.DeleteDirectory($"/{rndName}B");
+                */
+            }
+
+            Console.Read();
+
+        }
     }
-    
-    
+
+    private void Dir(SftpClient sftp, string path) {
+
+        sftp.ChangeDirectory(path);
+
+        Action<SftpFile> ShowDirOrFile = (item) => {
+            if (item.IsDirectory)
+                ShowOnScreen($"[{item.Name}]", LogMsg);
+            //else
+                 //ShowOnScreen($"{item.Name:-32} {item.Length,8:N0} bytes", LogMsg);
+        };
+
+        var list = sftp.ListDirectory(path)
+                        //忽略 . 及 .. 目錄
+                        .Where(o => !".,..".Split(',').Contains(o.Name))
+                        .ToList();
+        if (list.Any())
+            list.ForEach(ShowDirOrFile);
+        else {
+            ShowOnScreen("No files.", LogMsg);
+        }
+
+
+    }
+
+
 
     /*
     bool VersionCompare(string bundleName)
@@ -239,7 +302,7 @@ public class AssetBundleManager : MonoBehaviour {
     IEnumerator AsyncLoadFromMemory() {
         string cubeAbPath = "AssetBundles/wall/cubewall.unity";
         //读取字节流
-        byte[] abBytes = File.ReadAllBytes(cubeAbPath);
+        byte[] abBytes = System.IO.File.ReadAllBytes(cubeAbPath);
         AssetBundleCreateRequest abRequest = AssetBundle.LoadFromMemoryAsync(abBytes);
         yield return abRequest;
         AssetBundle ab = abRequest.assetBundle;
@@ -264,24 +327,7 @@ public class AssetBundleManager : MonoBehaviour {
         Instantiate(obj);
     }
     //https://blog.csdn.net/yunjianxi0000/article/details/96283609
-    /// <summary>
-    /// 通过 UnityWebRequest 加载
-    /// </summary>
-    /// <returns></returns>
-    IEnumerator LoadFromWebRequest(string bundleName) {
-        bundleName = "2020_newyear";
-        string url = "" + bundleName;
-        UnityWebRequest request = UnityWebRequestAssetBundle.GetAssetBundle(url);
-        yield return request.SendWebRequest();
 
-        
-        AssetBundle ab = (request.downloadHandler as DownloadHandlerAssetBundle).assetBundle;
-        GameObject obj = ab.LoadAsset<GameObject>("2020_newyear");
-
-        Instantiate(obj);
-        obj.transform.SetParent(loadhere);
-        obj.transform.localPosition = Vector3.zero;
-    }
 
     /*
     public IEnumerator Load (string bundleName)
@@ -419,9 +465,48 @@ public class AssetBundleManager : MonoBehaviour {
     */
 
     void ShowOnScreen(string s , Text t) {
-        t.text = s;
+        t.text += s;
+        t.text += "\n";
     }
 
+    void ClearAllText() {
+        ThemeNameMsg.text = "";
+        BundleStateMsg.text = "";
+        LogMsg.text = "";
+    }
+
+    private void DownloadWithFTP(string ftpHost, string ftpUsername, string ftpPassword, string ftpFilePath, string savePath) {
+        if (isLocal)
+            return;
+        else {
+            /*
+            FtpWebRequest request = (FtpWebRequest)WebRequest.Create(new Uri(ftpHost));
+            request.UsePassive = true;
+            request.UseBinary = true;
+            request.KeepAlive = true;
+            // Set up the credentials for the FTP client
+            NetworkCredential credentials = new NetworkCredential(ftpUsername, ftpPassword);
+
+            // Set up the FTP request
+            request.Credentials = credentials;
+
+            request.Method = WebRequestMethods.Ftp.ListDirectory;
+            if (request.GetResponse() != null) {
+                print("response :" + request.GetResponse());
+            }
+
+            request.Method = WebRequestMethods.Ftp.DownloadFile;
+            // Get the list of files in the root directory
+
+            if (request.GetResponse()!= null) {
+
+                print("response :" + request.GetResponse());
+
+                downloadAndSave(request.GetResponse(), savePath);
+            }*/
+        }
+
+    }
 
     /*
     //複寫資訊
