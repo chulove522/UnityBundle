@@ -1,10 +1,25 @@
 ManifestFileVersion: 0
-CRC: 600741319
+CRC: 1391880767
 AssetBundleManifest:
   AssetBundleInfos:
     Info_0:
-      Name: 2020_newyear
-      Dependencies: {}
-    Info_1:
       Name: picbot_audios
       Dependencies: {}
+    Info_1:
+      Name: postcards
+      Dependencies: {}
+    Info_2:
+      Name: basiccolormat
+      Dependencies: {}
+    Info_3:
+      Name: 2020_cosmo
+      Dependencies:
+        Dependency_0: basiccolormat
+    Info_4:
+      Name: 2020_ellerun
+      Dependencies:
+        Dependency_0: basiccolormat
+    Info_5:
+      Name: 2020_newyear
+      Dependencies:
+        Dependency_0: basiccolormat

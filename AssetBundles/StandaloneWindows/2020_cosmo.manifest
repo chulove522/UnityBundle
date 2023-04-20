@@ -1,0 +1,32 @@
+ManifestFileVersion: 0
+CRC: 861864627
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: aafd98e8d3957fad4f6e890d85074c13
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: 4db82f4e618e4630b2fa8228e9c6d8d1
+HashAppended: 0
+ClassTypes:
+- Class: 1
+  Script: {instanceID: 0}
+- Class: 4
+  Script: {instanceID: 0}
+- Class: 21
+  Script: {instanceID: 0}
+- Class: 23
+  Script: {instanceID: 0}
+- Class: 33
+  Script: {instanceID: 0}
+- Class: 43
+  Script: {instanceID: 0}
+- Class: 65
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/Prefabs/2020_Cosmo/Cube02.prefab
+- Assets/Prefabs/2020_Cosmo/Cube01.prefab
+- Assets/Prefabs/2020_Cosmo/Cube03.prefab
+Dependencies:
+- C:/Users/chulo/UnityProject/EasyUnityBundle01/AssetBundles/StandaloneWindows/basiccolormat

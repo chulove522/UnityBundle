@@ -1,0 +1,21 @@
+ManifestFileVersion: 0
+CRC: 802976376
+Hashes:
+  AssetFileHash:
+    serializedVersion: 2
+    Hash: 7b56d75834b2fa8b5fafefc3a5d98f6d
+  TypeTreeHash:
+    serializedVersion: 2
+    Hash: b0363f7088f9761414f730641bf9a24b
+HashAppended: 0
+ClassTypes:
+- Class: 28
+  Script: {instanceID: 0}
+SerializeReferenceClassIdentifiers: []
+Assets:
+- Assets/postcard/game ghost03.png
+- Assets/postcard/game ghost02.png
+- Assets/postcard/wood anime.jpeg
+- Assets/postcard/wood02.jpg
+- Assets/postcard/game ghost.png
+Dependencies: []

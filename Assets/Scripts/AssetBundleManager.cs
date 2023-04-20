@@ -14,9 +14,9 @@ using System.Text;
 
 public class AssetBundleManager : MonoBehaviour {
 
-    public Text ThemeNameMsg;
-    public Text BundleStateMsg;
-    public Text StreamingPath;
+    public Text BundleStateMsg;   //show version and date
+    public Text BundleExistsMsg;  //show loaded
+    public Text ABVersionPath;
     public Text ErrorMsg;
     public Text LogMsg;
     public Image TestImage;
@@ -39,15 +39,27 @@ public class AssetBundleManager : MonoBehaviour {
     /// 連接所需資料  下載路徑
     ///     //18.180.240.3
     /// </summary>
-    string serverUrl = "18.180.240.3";
-    string localStreamingPath;
-    string storagePath;
-    string GlobalConstAB_VERSION_FILE = "ABVersion.json";
-    string GlobalConstAnnouncement = "活動公告.txt";
-    string TestImageFile;
-    string rootPath;
-    string bundlePath;
+    private string serverUrl = "18.180.240.3";
+    private string AbPath = "AssetBundles/StandaloneWindows/";
+    private string storagePath = "Assets/Download/";
+    private string uploadPath = "Assets/Upload/";
+    private string GlobalConstAB_VERSION_FILE = "ABVersion.json";
+    private string GlobalConstAnnouncement = "活動公告.txt";
+
+    /// <summary>
+    ///    寫在init中
+    /// 
+    ///    serverRootPath = "/home/unity_bundle_sftp_user/";
+    ///    ServerBundlePath = "/home/unity_bundle_sftp_user/bundles/";
+    ///    annnouncementPath = "/home/unity_bundle_sftp_user/announcement/";
+    ///    
+    /// 
+    /// </summary>
+    string serverRootPath;
+    string ServerBundlePath;
     string annnouncementPath;
+    public List<ABVersionData> LocalVersionData;
+    public List<ABVersionData> ServerVersionData;
 
     // ssh -i C:\Users\chulo\UnityProject\FunkAR.pem ubuntu@18.180.240.3
 
@@ -56,12 +68,8 @@ public class AssetBundleManager : MonoBehaviour {
 
     static bool isInit = false;
 
-    public Dictionary<string, AssetBundle> loadedBundle;
-
     public delegate void LoadHandler(AssetBundle stageObject);
 
-    public List<ABVersionData> _localVersionData;
-    public List<ABVersionData> _serverVersionData;
 
     private int ftpConnectPort = 21;
 
@@ -79,12 +87,14 @@ public class AssetBundleManager : MonoBehaviour {
     {
         Instance = this.GetComponent<AssetBundleManager>();
         DontDestroyOnLoad(gameObject);
-        Init();
+        LocalVersionData = new List<ABVersionData> ();
+        if (!isInit)
+            Init();
 
     }
 
 
-
+    //show 自己的ab list
     public void LoadJson(string ABcheckPath) {
 
         using (StreamReader r = new StreamReader(ABcheckPath)) {
@@ -93,11 +103,10 @@ public class AssetBundleManager : MonoBehaviour {
 
             Debug.Log(ABjson);
 
-            List<ABVersionData> abList = JsonConvert.DeserializeObject<List<ABVersionData>>(ABjson);
+            LocalVersionData = JsonConvert.DeserializeObject<List<ABVersionData>>(ABjson);
 
-            foreach (var item in abList) {
-                ShowOnScreen("Name:" + item.Name +"\n" , ThemeNameMsg);
-                ShowOnScreen("Ver:" + item.Version + " Last Updated:" + item.Datetime + "\n" , BundleStateMsg);
+            foreach (var item in LocalVersionData) {
+                ShowOnScreen("Name:" + item.Name + "\n" + "Ver:" + item.Version + " Last Updated:" + item.Datetime + "\n--------\n", BundleStateMsg);
             }
 
         }
@@ -109,40 +118,29 @@ public class AssetBundleManager : MonoBehaviour {
     {
 
         ClearAllText();
-
-        if (loadedBundle == null)
-            loadedBundle = new Dictionary<string, AssetBundle>();
-
-        storagePath = Application.streamingAssetsPath;
-
         string ABcheckPath = Path.Combine(Application.streamingAssetsPath, "AssetBundles/");
         ABcheckPath += GlobalConstAB_VERSION_FILE;
 
-        localStreamingPath = Path.Combine(Application.streamingAssetsPath, "AssetBundles/Windows");
-
-        TestImageFile = Application.dataPath + "/TestImageFile";
-
-        rootPath = "/home/unity_bundle_sftp_user/";
-        bundlePath = "/home/unity_bundle_sftp_user/bundles/";
+        serverRootPath = "/home/unity_bundle_sftp_user/";
+        ServerBundlePath = "/home/unity_bundle_sftp_user/bundles/";
         annnouncementPath = "/home/unity_bundle_sftp_user/announcement/";
 
-        ShowOnScreen(localStreamingPath , StreamingPath);
-
-
-        ShowOnScreen("ABcheckPath:" + ABcheckPath, LogMsg);
-
+        ShowOnScreen(ABcheckPath, ABVersionPath);
 
 
         if (System.IO.File.Exists(ABcheckPath))
         {
-            ShowOnScreen("------found AB check json------", LogMsg);
+            ShowOnScreen("------found AB check json------\n", LogMsg);
             //本地Json必讀
             LoadJson(ABcheckPath);
 
-            
-            //測試 下載一張圖    
-            DownloadWithsFTP(serverUrl, "unity_bundle_sftp_user");
 
+            //測試 下載一張圖    
+            DownloadWithSFTP(serverUrl, "unity_bundle_sftp_user");
+
+
+            //測試 載入bundle使用
+            StartCoroutine( AsyncCreateFromLocal("2020_cosmo","Cube01",3));
            isInit = true;  
         }
         else
@@ -164,8 +162,25 @@ public class AssetBundleManager : MonoBehaviour {
 
     }
 
+    private int dateToInt() {
+        string date = DateTime.Now.ToString("yyyyMMddHHmm");
+        date = date.Substring(3, 10);
+        int dateToNumber = 0;
+        for (int i = 0; i < 9; i++) {
+            dateToNumber += date[i] * (int)(Math.Pow(10, i));
+        }
+        print("dateToNumber" + dateToNumber);
+        return dateToNumber;
+    }
+
+    private string dateToString() {
+        string date = DateTime.Now.ToString("yyyyMMddHHmm");
+        date = date.Substring(3, 10);
+        return date;
+    }
+
    
-    private void DownloadWithsFTP(string ftpHost, string ftpUsername) {
+    private void DownloadWithSFTP(string ftpHost, string ftpUsername) {
         if (!isLocal) {
             var privateKey = new PrivateKeyFile(@"C:\Users\chulo\文件\unitybundles\meta_dev_armand_unity_sftp.pem");
 
@@ -175,33 +190,34 @@ public class AssetBundleManager : MonoBehaviour {
                 
 
 
-                Dir(sftp, bundlePath);
+                Dir(sftp, ServerBundlePath);
                 ShowOnScreen("------Create folder------", LogMsg);
 
-                var rndName = DateTime.Now.ToString("yyyyMMddHHmm");
-                rndName = rndName.Substring(2, 10);
+                var rndName = dateToString();
+
 
                 sftp.CreateDirectory($"{rndName}");
 
 
-                Dir(sftp, bundlePath);
+                Dir(sftp, ServerBundlePath);
 
                 ShowOnScreen("------Upload file------", LogMsg);
                 /*
-                using (var ms = new MemoryStream()) {
-                    var buff = Encoding.UTF8.GetBytes("Hello, World!");
-                    ms.Write(buff, 0, buff.Length);
-                    ms.Position = 0;
-                    //sftp.UploadFile(ms, $"/{rndName}A/test.txt");
-                    sftp.UploadFile(ms, annnouncementPath + $"test.txt");
-                }*/
-                string image01Path = TestImageFile + "/test01.jpg";
+                    using (var ms = new MemoryStream()) {
+                        var buff = Encoding.UTF8.GetBytes("Hello, World!");
+                        ms.Write(buff, 0, buff.Length);
+                        ms.Position = 0;
+                        //sftp.UploadFile(ms, $"/{rndName}A/test.txt");
+                        sftp.UploadFile(ms, annnouncementPath + $"test.txt");
+                    }*/
+
+                string image01Path = uploadPath + "test01.jpg";
                 using (var fileStream = new FileStream(image01Path, FileMode.Open)) {
                     sftp.UploadFile(fileStream, annnouncementPath + Path.GetFileName(image01Path));
                 }
 
 
-                Dir(sftp, bundlePath + $"{rndName}");
+                Dir(sftp, ServerBundlePath + $"{rndName}");
 
                 using (var announcementDocu = new FileStream("D:\\announcementDocu.txt", FileMode.Create)) {
                     //sftp.DownloadFile( rootPath + $"{rndName}/test.txt", file);
@@ -209,17 +225,17 @@ public class AssetBundleManager : MonoBehaviour {
                    
                 }
 
-                ShowOnScreen("------Downloaded content=" + System.IO.File.ReadAllText("D:\\announcementDocu.txt") + "------", LogMsg);
+                ShowOnScreen("------Downloaded content------\n" + System.IO.File.ReadAllText("D:\\announcementDocu.txt") + "\n------------\n", LogMsg);
 
-                /*
-                WriteTitle("Move file");
+                
+                ShowOnScreen("------Move file------\n" + System.IO.File.ReadAllText("D:\\announcementDocu.txt") + "\n------------\n", LogMsg);
 
-                sftp.CreateDirectory($"/{rndName}B");
-                sftp.RenameFile($"/{rndName}A/test.txt", $"/{rndName}B/test.txt");
+                sftp.CreateDirectory($"/{rndName}_Move");
+                sftp.RenameFile($"/{rndName}/test.txt", $"/{rndName}_Move/test.txt");
 
-                Dir($"/{rndName}A");
-                Dir($"/{rndName}B");
-                */
+                Dir(sftp , $"/{rndName}");
+                Dir(sftp , $"/{rndName}_Move");
+                
                 /*
                 WriteTitle("Delete file");
 
@@ -316,16 +332,98 @@ public class AssetBundleManager : MonoBehaviour {
     /// 从本地异步加载
     /// </summary>
     /// <returns></returns>
-    IEnumerator AsyncCreateFromLocal(string bundlename) {
+    IEnumerator AsyncCreateFromLocal(string bundlename , string objectname, int count) {
+        //changeABPath
+        string bundlePath = AbPath + bundlename;
         bundlename = bundlename.Replace(" ","").ToLower();
-        string cubeAbPath = "AssetBundles/StandaloneWindows/" + bundlename;
-        AssetBundleCreateRequest abRequest = AssetBundle.LoadFromFileAsync(cubeAbPath);
+        
+        string manifestpath = "AssetBundles/StandaloneWindows/StandaloneWindows"; //請注意有連續兩個Standalone Windows
+        
+        AssetBundleCreateRequest abRequest = AssetBundle.LoadFromFileAsync(bundlePath);
         yield return abRequest;
         AssetBundle ab = abRequest.assetBundle;
-        GameObject obj = ab.LoadAsset<GameObject>("cubewall");
 
-        Instantiate(obj);
+
+
+        //加载的Manifest文件是主的Manifest文件而不是每个AB包的Manifest文件，因为从主Manifest可以访问到所有资源的依赖资源   
+        AssetBundle ABmanifest = AssetBundle.LoadFromFile(manifestpath);
+        //获取AssetBundle文件的AssetBundleManifest的信息
+        AssetBundleManifest manifest = ABmanifest.LoadAsset<AssetBundleManifest>("AssetBundleManifest");
+
+        string[] dependencies = manifest.GetAllDependencies(bundlename);
+
+
+        if (manifest == null) {
+            ShowOnScreen("manifest null!" , ErrorMsg);
+        }
+        else {
+            //載入依賴bundles
+            foreach (string dependency in dependencies) {
+                string dependPath = "AssetBundles/StandaloneWindows/" + dependency;
+                AssetBundle.LoadFromFile(dependPath);
+                print("載入依賴bundles:" + dependency + " from:" + dependPath);
+                print("Path.Combine(AbPath, dependency) = " + Path.Combine(AbPath, dependency));
+            }
+            //拿自己的ABjson 與本地的bundle名稱比對 確認沒少
+            List<string> abListFromJson =  new List<string>();
+            foreach (var item in LocalVersionData) {
+                abListFromJson.Add(item.Name.Replace(" ", "").ToLower());
+            }
+            List<string> allABIhave = new List<string>();
+            allABIhave = manifest.GetAllAssetBundles().ToList();
+
+            foreach (var ab_item in allABIhave) {  //實際上有的
+                if (abListFromJson.Contains(ab_item)) {
+                    ShowOnScreen("本地有bundle: " + ab_item + "\n--------\n", BundleExistsMsg);
+                }
+                else {
+                    ShowOnScreen("請在ABVersion中加入此項目: " + ab_item +"\n--------\n", BundleExistsMsg);
+                }
+
+            }
+
+            foreach (string json_item in abListFromJson) {
+                if (!allABIhave.Contains(json_item))
+                    ShowOnScreen("本地端bundle遺失:" + json_item + "\n--------\n", BundleExistsMsg);
+            }
+
+        }
+
+        ////----------------
+
+        GameObject[] objS = ab.LoadAllAssets<GameObject>();
+
+        //生成的次數
+       foreach (GameObject obj in objS) {
+            Instantiate(obj);
+            obj.transform.SetParent(loadhere);
+            obj.transform.localPosition = Vector3.zero;
+            obj.transform.localRotation = Quaternion.identity;
+            print("生成:" + obj.name);
+        }
+
+
+    /*
+    //一個一個!!
+    try {
+        GameObject obj = ab.LoadAsset<GameObject>(objectname);
+        //生成的次數
+        for (int i = 0; i < count; i++) {
+            Instantiate(obj);
+            obj.transform.SetParent(loadhere);
+            obj.transform.localPosition = Vector3.zero;
+            obj.transform.localRotation = Quaternion.identity;       }
+
+        }
+    catch (Exception e ) {
+        ShowOnScreen("the objectname you want from this bundle is probably wrong" , ErrorMsg);
+        ShowOnScreen(e.Message, ErrorMsg);
+        throw;
     }
+    */
+
+
+}
     //https://blog.csdn.net/yunjianxi0000/article/details/96283609
 
 
@@ -442,27 +540,7 @@ public class AssetBundleManager : MonoBehaviour {
             Debug.LogError("Bundle Load Fail : "+bundleName);
         }
     }*/
-    /*
-    public IEnumerator DownloadBundleFromServer(string bundleName)
-    {
-        var downloadPath = serverPath + bundleName;
-        Debug.LogWarning("Start Download : " + downloadPath);
-        WWW www;
-        www = new WWW(downloadPath);
-
-        yield return www;
-
-        if (!string.IsNullOrEmpty(www.error) || www.bytes.Length == 0)
-        {
-            Debug.LogError("Connection Fail. " + www.error);
-            isLocal = true;
-            yield break;
-        }
-        var downloadSavePath = Path.Combine(storagePath, bundleName);
-        File.WriteAllBytes(downloadSavePath, www.bytes);
-        
-    }
-    */
+    
 
     void ShowOnScreen(string s , Text t) {
         t.text += s;
@@ -470,16 +548,18 @@ public class AssetBundleManager : MonoBehaviour {
     }
 
     void ClearAllText() {
-        ThemeNameMsg.text = "";
         BundleStateMsg.text = "";
         LogMsg.text = "";
+        BundleExistsMsg.text = "";
     }
 
+    #region FTPDownload
+    /*
     private void DownloadWithFTP(string ftpHost, string ftpUsername, string ftpPassword, string ftpFilePath, string savePath) {
         if (isLocal)
             return;
         else {
-            /*
+            
             FtpWebRequest request = (FtpWebRequest)WebRequest.Create(new Uri(ftpHost));
             request.UsePassive = true;
             request.UseBinary = true;
@@ -503,11 +583,12 @@ public class AssetBundleManager : MonoBehaviour {
                 print("response :" + request.GetResponse());
 
                 downloadAndSave(request.GetResponse(), savePath);
-            }*/
+            }
         }
 
     }
-
+    */
+    #endregion
     /*
     //複寫資訊
     public void WriteVersionInfo(string path,string content)
@@ -524,5 +605,26 @@ public class AssetBundleManager : MonoBehaviour {
             File.WriteAllText(path, content);
         }
     }*/
+    /*
+    public IEnumerator DownloadBundleFromServer(string bundleName)
+    {
+        var downloadPath = serverPath + bundleName;
+        Debug.LogWarning("Start Download : " + downloadPath);
+        WWW www;
+        www = new WWW(downloadPath);
+
+        yield return www;
+
+        if (!string.IsNullOrEmpty(www.error) || www.bytes.Length == 0)
+        {
+            Debug.LogError("Connection Fail. " + www.error);
+            isLocal = true;
+            yield break;
+        }
+        var downloadSavePath = Path.Combine(storagePath, bundleName);
+        File.WriteAllBytes(downloadSavePath, www.bytes);
+        
+    }
+    */
 
 }
